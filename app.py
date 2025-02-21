@@ -39,3 +39,29 @@ if uploaded_file:
         st.write("⚠ Không phát hiện được mã QR hợp lệ trong ảnh!")
 
 
+import streamlit as st
+import qrcode
+from PIL import Image
+import requests
+from pyzbar.pyzbar import decode
+
+# Hàm kiểm tra URL an toàn
+def check_url_safety(url):
+    blacklist = ["phishing.com", "malware-site.net", "dangerous-site.org"]
+    for site in blacklist:
+        if site in url:
+            return "❌ Cảnh báo: URL này có thể nguy hiểm!"
+    return "✅ URL an toàn!"
+
+# Hàm lấy tiêu đề trang web để xem trước nội dung URL
+def get_url_preview(url):
+    try:
+        response = requests.get(url, timeout=3)  # Giới hạn thời gian để tránh treo ứng dụng
+        if response.status_code == 200:
+            return response.text[:500]  # Hiển thị 500 ký tự đầu tiên của HTML trang
+    except:
+        return "⚠ Không thể xem trước nội dung trang này!"
+    return "⚠ URL không hợp lệ hoặc không thể truy cập."
+
+# Giao diện Streamlit
+st.title("🔍 Kiểm tra độ an toàn của mã QR &
