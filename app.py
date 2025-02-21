@@ -13,19 +13,7 @@ st.set_page_config(page_title="QR Security Check", layout="wide")
 st.markdown("""
     <style>
     .stApp { max-width: 800px; margin: auto; }
-    .header-container {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-    }
-    .header-container img {
-        width: 120px; /* Điều chỉnh kích thước logo */
-        margin-right: 15px;
-    }
-    .header-title {
-        font-size: 26px;
-        font-weight: bold;
-    }
+    .title { text-align: center; font-size: 26px; font-weight: bold; }
     .chat-box { padding: 15px; border-radius: 10px; margin: 10px 0; font-size: 16px; }
     .safe { background-color: #dff0d8; color: #3c763d; } /* Xanh lá */
     .danger { background-color: #f2dede; color: #a94442; } /* Đỏ */
@@ -35,17 +23,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 📌 Hiển thị logo VNU-IS và tiêu đề
-logo_path = "logo_ENG_positive_full-color-10.width-500.png"  # Đảm bảo logo nằm trong thư mục dự án
-st.markdown(f"""
-    <div class="header-container">
-        <img src="{logo_path}">
-        <span class="header-title">🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL</span>
-    </div>
-""", unsafe_allow_html=True)
-
-# 🏆 Tiêu đề chính
-st.write("## Hệ thống kiểm tra mã QR thông minh")
+# 🏆 Tiêu đề ứng dụng
+st.markdown("<p class='title'>🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL</p>", unsafe_allow_html=True)
 
 # 🛡️ Hàm kiểm tra độ an toàn của URL
 def check_url_safety(url):
@@ -108,4 +87,3 @@ if uploaded_file:
             st.markdown(f"<div class='chat-box info'><strong>{preview_text}</strong></div>", unsafe_allow_html=True)
     else:
         st.markdown("<div class='chat-box warn'>⚠ Không phát hiện được mã QR hợp lệ trong ảnh!</div>", unsafe_allow_html=True)
-
