@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 # 🖥️ Cấu hình trang rộng
 st.set_page_config(page_title="QR Security Check", layout="wide")
 
-# 🎨 CSS để tạo giao diện chuyên nghiệp
+# 🎨 CSS để tạo giao diện đẹp hơn
 st.markdown("""
     <style>
     .stApp { max-width: 800px; margin: auto; }
@@ -26,13 +26,31 @@ st.markdown("""
 # 🏆 Tiêu đề ứng dụng
 st.markdown("<p class='title'>🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL</p>", unsafe_allow_html=True)
 
-# 🛡️ Hàm kiểm tra độ an toàn của URL
+# 🛡️ Cấu hình API Key của Google Safe Browsing (Thay bằng API Key của bạn)
+GOOGLE_SAFE_BROWSING_API_KEY = "YOUR_GOOGLE_SAFE_BROWSING_API_KEY"
+
+# 🛡️ Hàm kiểm tra độ an toàn của URL qua Google Safe Browsing API
 def check_url_safety(url):
-    blacklist = ["phishing.com", "malware-site.net", "dangerous-site.org"]
-    for site in blacklist:
-        if site in url:
-            return "❌ Cảnh báo: URL này có thể nguy hiểm!", "danger"
-    return "✅ URL an toàn!", "safe"
+    google_api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={GOOGLE_SAFE_BROWSING_API_KEY}"
+    request_body = {
+        "client": {"clientId": "streamlit-app", "clientVersion": "1.0"},
+        "threatInfo": {
+            "threatTypes": ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+            "platformTypes": ["ANY_PLATFORM"],
+            "threatEntryTypes": ["URL"],
+            "threatEntries": [{"url": url}]
+        }
+    }
+
+    try:
+        response = requests.post(google_api_url, json=request_body)
+        result = response.json()
+        if "matches" in result:
+            return "❌ Cảnh báo: URL này bị Google đánh dấu là không an toàn!", "danger"
+        else:
+            return "✅ URL an toàn!", "safe"
+    except Exception as e:
+        return f"⚠ Lỗi khi kiểm tra URL: {str(e)}", "warn"
 
 # 🌐 Hàm lấy tiêu đề trang & ảnh xem trước
 def get_url_preview(url):
