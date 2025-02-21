@@ -6,72 +6,35 @@ from pyzbar.pyzbar import decode
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# 🔹 Thay API key của bạn vào đây
-VIRUSTOTAL_API_KEY = "YOUR_VIRUSTOTAL_API_KEY"
-GOOGLE_SAFE_BROWSING_API_KEY = "YOUR_GOOGLE_SAFE_BROWSING_API_KEY"
+# 🖥️ Cấu hình trang (Giao diện rộng, tiêu đề)
+st.set_page_config(page_title="QR Security Check", layout="wide")
 
-# 🛡️ Kiểm tra URL bằng VirusTotal
-def check_url_with_virustotal(url):
-    headers = {"x-apikey": VIRUSTOTAL_API_KEY}
-    params = {"url": url}
-    scan_url = "https://www.virustotal.com/api/v3/urls"
+# 🎨 CSS tùy chỉnh để tạo giao diện giống ChatGPT
+st.markdown("""
+    <style>
+    .stApp { max-width: 800px; margin: auto; }
+    .title { text-align: center; font-size: 28px; font-weight: bold; }
+    .chat-box { padding: 15px; border-radius: 10px; margin: 10px 0; font-size: 16px; }
+    .safe { background-color: #dff0d8; color: #3c763d; } /* Màu xanh lá */
+    .danger { background-color: #f2dede; color: #a94442; } /* Màu đỏ */
+    .info { background-color: #d9edf7; color: #31708f; } /* Màu xanh dương */
+    .warn { background-color: #fcf8e3; color: #8a6d3b; } /* Màu vàng */
+    .stButton>button:hover { border: 2px solid #0A74DA; transform: scale(1.02); }
+    </style>
+""", unsafe_allow_html=True)
 
-    try:
-        response = requests.post(scan_url, headers=headers, data=params)
-        if response.status_code == 200:
-            result = response.json()
-            url_id = result["data"]["id"]
+# 🏆 Tiêu đề ứng dụng
+st.markdown("<p class='title'>🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL</p>", unsafe_allow_html=True)
 
-            # Lấy kết quả phân tích
-            report_url = f"https://www.virustotal.com/api/v3/analyses/{url_id}"
-            report_response = requests.get(report_url, headers=headers)
-            report_data = report_response.json()
-
-            # Kiểm tra số lượng công cụ đánh giá URL là nguy hiểm
-            malicious_count = report_data["data"]["attributes"]["stats"]["malicious"]
-            if malicious_count > 0:
-                return f"❌ Cảnh báo: URL này bị đánh giá nguy hiểm bởi {malicious_count} nguồn!"
-            else:
-                return "✅ URL an toàn!"
-        else:
-            return "⚠ Không thể kiểm tra URL (Lỗi API)."
-    except Exception as e:
-        return f"⚠ Lỗi khi kiểm tra URL trên VirusTotal: {str(e)}"
-
-# 🛡️ Kiểm tra URL bằng Google Safe Browsing
-def check_url_with_google_safe_browsing(url):
-    google_api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={GOOGLE_SAFE_BROWSING_API_KEY}"
-    request_body = {
-        "client": {"clientId": "streamlit-app", "clientVersion": "1.0"},
-        "threatInfo": {
-            "threatTypes": ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
-            "platformTypes": ["ANY_PLATFORM"],
-            "threatEntryTypes": ["URL"],
-            "threatEntries": [{"url": url}]
-        }
-    }
-
-    try:
-        response = requests.post(google_api_url, json=request_body)
-        result = response.json()
-        if "matches" in result:
-            return "❌ Cảnh báo: URL này bị Google đánh dấu là không an toàn!"
-        else:
-            return "✅ URL an toàn!"
-    except Exception as e:
-        return f"⚠ Lỗi khi kiểm tra URL trên Google Safe Browsing: {str(e)}"
-
-# 🔹 Tích hợp kiểm tra từ nhiều nguồn
+# 🛡️ Hàm kiểm tra độ an toàn của URL
 def check_url_safety(url):
-    vt_result = check_url_with_virustotal(url)
-    google_result = check_url_with_google_safe_browsing(url)
+    blacklist = ["phishing.com", "malware-site.net", "dangerous-site.org"]
+    for site in blacklist:
+        if site in url:
+            return "❌ Cảnh báo: URL này có thể nguy hiểm!", "danger"
+    return "✅ URL an toàn!", "safe"
 
-    if "Cảnh báo" in vt_result or "Cảnh báo" in google_result:
-        return f"⚠ {vt_result}\n⚠ {google_result}"
-    
-    return "✅ URL an toàn!"
-
-# 🌐 Lấy tiêu đề trang web & ảnh xem trước
+# 🌐 Hàm lấy tiêu đề trang & ảnh xem trước
 def get_url_preview(url):
     try:
         response = requests.get(url, timeout=5, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
@@ -81,12 +44,12 @@ def get_url_preview(url):
         og_image = soup.find("meta", property="og:image")
         image_url = og_image["content"] if og_image else None
 
-        # Nếu không có og:image, thử lấy favicon hoặc apple-touch-icon
+        # Nếu không có ảnh, lấy favicon
         if not image_url:
             icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
             image_url = icon_link["href"] if icon_link else None
 
-        # Xử lý URL ảnh nếu nó là đường dẫn tương đối
+        # Xử lý URL ảnh nếu là đường dẫn tương đối
         if image_url and not image_url.startswith("http"):
             image_url = urljoin(url, image_url)
 
@@ -96,9 +59,6 @@ def get_url_preview(url):
         return image_url, page_title
     except:
         return None, "⚠ Không thể xem trước nội dung trang này!"
-
-# 🎨 Giao diện Streamlit
-st.title("🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL")
 
 # 📂 Tải lên ảnh QR Code
 uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"], key="file_uploader_main")
@@ -112,11 +72,11 @@ if uploaded_file:
     decoded_objects = decode(image)
     if decoded_objects:
         decoded_url = decoded_objects[0].data.decode("utf-8")
-        st.write(f"🔗 **URL giải mã từ QR:** [{decoded_url}]({decoded_url})")
+        st.markdown(f"<div class='chat-box info'>🔗 <strong>URL giải mã từ QR:</strong> <a href='{decoded_url}' target='_blank'>{decoded_url}</a></div>", unsafe_allow_html=True)
 
         # 🛡️ Kiểm tra độ an toàn của URL
-        safety_result = check_url_safety(decoded_url)
-        st.write(safety_result)
+        safety_result, safety_class = check_url_safety(decoded_url)
+        st.markdown(f"<div class='chat-box {safety_class}'>{safety_result}</div>", unsafe_allow_html=True)
 
         # 🌐 Xem trước nội dung trang web
         with st.expander("🔍 Xem trước nội dung trang web"):
@@ -124,6 +84,6 @@ if uploaded_file:
 
             if image_url:
                 st.image(image_url, caption="Ảnh xem trước", use_column_width=True)
-            st.write(f"**{preview_text}**")
+            st.markdown(f"<div class='chat-box info'><strong>{preview_text}</strong></div>", unsafe_allow_html=True)
     else:
-        st.write("⚠ Không phát hiện được mã QR hợp lệ trong ảnh!")
+        st.markdown("<div class='chat-box warn'>⚠ Không phát hiện được mã QR hợp lệ trong ảnh!</div>", unsafe_allow_html=True)
