@@ -6,25 +6,46 @@ from pyzbar.pyzbar import decode
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-# 🖥️ Cấu hình trang (Giao diện rộng, tiêu đề)
+# 🖥️ Cấu hình trang rộng
 st.set_page_config(page_title="QR Security Check", layout="wide")
 
-# 🎨 CSS tùy chỉnh để tạo giao diện giống ChatGPT
+# 🎨 CSS để tạo giao diện chuyên nghiệp
 st.markdown("""
     <style>
     .stApp { max-width: 800px; margin: auto; }
-    .title { text-align: center; font-size: 28px; font-weight: bold; }
+    .header-container {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+    .header-container img {
+        width: 120px; /* Điều chỉnh kích thước logo */
+        margin-right: 15px;
+    }
+    .header-title {
+        font-size: 26px;
+        font-weight: bold;
+    }
     .chat-box { padding: 15px; border-radius: 10px; margin: 10px 0; font-size: 16px; }
-    .safe { background-color: #dff0d8; color: #3c763d; } /* Màu xanh lá */
-    .danger { background-color: #f2dede; color: #a94442; } /* Màu đỏ */
-    .info { background-color: #d9edf7; color: #31708f; } /* Màu xanh dương */
-    .warn { background-color: #fcf8e3; color: #8a6d3b; } /* Màu vàng */
+    .safe { background-color: #dff0d8; color: #3c763d; } /* Xanh lá */
+    .danger { background-color: #f2dede; color: #a94442; } /* Đỏ */
+    .info { background-color: #d9edf7; color: #31708f; } /* Xanh dương */
+    .warn { background-color: #fcf8e3; color: #8a6d3b; } /* Vàng */
     .stButton>button:hover { border: 2px solid #0A74DA; transform: scale(1.02); }
     </style>
 """, unsafe_allow_html=True)
 
-# 🏆 Tiêu đề ứng dụng
-st.markdown("<p class='title'>🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL</p>", unsafe_allow_html=True)
+# 📌 Hiển thị logo VNU-IS và tiêu đề
+logo_path = "logo_ENG_positive_full-color-10.width-500.png"  # Đảm bảo logo nằm trong thư mục dự án
+st.markdown(f"""
+    <div class="header-container">
+        <img src="{logo_path}">
+        <span class="header-title">🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL</span>
+    </div>
+""", unsafe_allow_html=True)
+
+# 🏆 Tiêu đề chính
+st.write("## Hệ thống kiểm tra mã QR thông minh")
 
 # 🛡️ Hàm kiểm tra độ an toàn của URL
 def check_url_safety(url):
@@ -87,42 +108,3 @@ if uploaded_file:
             st.markdown(f"<div class='chat-box info'><strong>{preview_text}</strong></div>", unsafe_allow_html=True)
     else:
         st.markdown("<div class='chat-box warn'>⚠ Không phát hiện được mã QR hợp lệ trong ảnh!</div>", unsafe_allow_html=True)
-
-import streamlit as st
-
-# 🖥️ Cấu hình trang rộng
-st.set_page_config(page_title="QR Security Check", layout="wide")
-
-# 🎨 CSS để căn chỉnh logo về bên trái
-st.markdown("""
-    <style>
-    .header-container {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-    }
-    .header-container img {
-        width: 120px; /* Điều chỉnh kích thước logo */
-        margin-right: 15px;
-    }
-    .header-title {
-        font-size: 26px;
-        font-weight: bold;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# 🔹 Hiển thị logo và tiêu đề
-logo_path = "logo_ENG_positive_full-color-10.width-500.png"  # Thay bằng đường dẫn file logo
-st.markdown(f"""
-    <div class="header-container">
-        <img src="{logo_path}">
-        <span class="header-title">🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL</span>
-    </div>
-""", unsafe_allow_html=True)
-
-# 🔹 Hiển thị nội dung tiếp theo
-st.write("## Hệ thống kiểm tra mã QR thông minh")
-
-# 📂 File uploader
-uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"])
