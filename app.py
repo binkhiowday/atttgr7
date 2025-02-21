@@ -87,3 +87,42 @@ if uploaded_file:
             st.markdown(f"<div class='chat-box info'><strong>{preview_text}</strong></div>", unsafe_allow_html=True)
     else:
         st.markdown("<div class='chat-box warn'>⚠ Không phát hiện được mã QR hợp lệ trong ảnh!</div>", unsafe_allow_html=True)
+
+import streamlit as st
+
+# 🖥️ Cấu hình trang rộng
+st.set_page_config(page_title="QR Security Check", layout="wide")
+
+# 🎨 CSS để căn chỉnh logo về bên trái
+st.markdown("""
+    <style>
+    .header-container {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+    .header-container img {
+        width: 120px; /* Điều chỉnh kích thước logo */
+        margin-right: 15px;
+    }
+    .header-title {
+        font-size: 26px;
+        font-weight: bold;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 🔹 Hiển thị logo và tiêu đề
+logo_path = "logo_ENG_positive_full-color-10.width-500.png"  # Thay bằng đường dẫn file logo
+st.markdown(f"""
+    <div class="header-container">
+        <img src="{logo_path}">
+        <span class="header-title">🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL</span>
+    </div>
+""", unsafe_allow_html=True)
+
+# 🔹 Hiển thị nội dung tiếp theo
+st.write("## Hệ thống kiểm tra mã QR thông minh")
+
+# 📂 File uploader
+uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"])
