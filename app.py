@@ -38,7 +38,6 @@ if uploaded_file:
     else:
         st.write("⚠ Không phát hiện được mã QR hợp lệ trong ảnh!")
 
-
 import streamlit as st
 import qrcode
 from PIL import Image
@@ -64,4 +63,29 @@ def get_url_preview(url):
     return "⚠ URL không hợp lệ hoặc không thể truy cập."
 
 # Giao diện Streamlit
-st.title("🔍 Kiểm tra độ an toàn của mã QR &
+st.title("🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL")
+
+# Tải lên ảnh QR Code
+uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"])
+
+if uploaded_file:
+    # Hiển thị ảnh
+    image = Image.open(uploaded_file)
+    st.image(image, caption="📷 Mã QR đã tải lên", use_column_width=True)
+
+    # Giải mã mã QR
+    decoded_objects = decode(image)
+    if decoded_objects:
+        decoded_url = decoded_objects[0].data.decode("utf-8")
+        st.write(f"🔗 **URL giải mã từ QR:** [{decoded_url}]({decoded_url})")
+
+        # Kiểm tra độ an toàn
+        safety_result = check_url_safety(decoded_url)
+        st.write(safety_result)
+
+        # Xem trước nội dung trang web
+        with st.expander("🔍 Xem trước nội dung trang web"):
+            preview_content = get_url_preview(decoded_url)
+            st.text(preview_content)
+    else:
+        st.write("⚠ Không phát hiện được mã QR hợp lệ trong ảnh!")
