@@ -3,6 +3,7 @@ import qrcode
 from PIL import Image
 import requests
 from pyzbar.pyzbar import decode
+from bs4 import BeautifulSoup
 
 # Hàm kiểm tra URL có an toàn không
 def check_url_safety(url):
@@ -13,15 +14,37 @@ def check_url_safety(url):
             return "❌ Cảnh báo: URL này có thể nguy hiểm!"
     return "✅ URL an toàn!"
 
-# Hàm lấy tiêu đề trang web để xem trước nội dung URL
+# Hàm lấy tiêu đề trang web & ảnh xem trước
 def get_url_preview(url):
     try:
-        response = requests.get(url, timeout=3)  # Giới hạn thời gian để tránh treo ứng dụng
-        if response.status_code == 200:
-            return response.text[:500]  # Hiển thị 500 ký tự đầu tiên của HTML trang
+        response = requests.get(url, timeout=5, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Lấy ảnh từ thẻ meta Open Graph (og:image)
+        og_image = soup.find("meta", property="og:image")
+        image_url = og_image["content"] if og_image else None
+
+        # Nếu không có og:image, thử lấy favicon
+        if not image_url:
+            favicon = soup.find("link", rel="icon")
+            image_url = favicon["href"] if favicon else None
+
+        # Nếu không có favicon, thử lấy apple-touch-icon
+        if not image_url:
+            apple_icon = soup.find("link", rel="apple-touch-icon")
+            image_url = apple_icon["href"] if apple_icon else None
+
+        # Lấy tiêu đề trang
+        page_title = soup.title.string if soup.title else "Không tìm thấy tiêu đề trang"
+
+        # Xử lý URL ảnh nếu nó là đường dẫn tương đối
+        if image_url and not image_url.startswith("http"):
+            from urllib.parse import urljoin
+            image_url = urljoin(url, image_url)
+
+        return image_url, page_title
     except:
-        return "⚠ Không thể xem trước nội dung trang này!"
-    return "⚠ URL không hợp lệ hoặc không thể truy cập."
+        return None, "⚠ Không thể xem trước nội dung trang này!"
 
 # Giao diện Streamlit
 st.title("🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL")
@@ -30,7 +53,7 @@ st.title("🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL")
 uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"], key="file_uploader_main")
 
 if uploaded_file:
-    # Hiển thị ảnh
+    # Hiển thị ảnh QR
     image = Image.open(uploaded_file)
     st.image(image, caption="📷 Mã QR đã tải lên", use_column_width=True)
 
@@ -46,7 +69,10 @@ if uploaded_file:
 
         # Xem trước nội dung trang web
         with st.expander("🔍 Xem trước nội dung trang web"):
-            preview_content = get_url_preview(decoded_url)
-            st.text(preview_content)
+            image_url, preview_text = get_url_preview(decoded_url)
+
+            if image_url:
+                st.image(image_url, caption="Ảnh xem trước", use_column_width=True)
+            st.write(f"**{preview_text}**")
     else:
         st.write("⚠ Không phát hiện được mã QR hợp lệ trong ảnh!")
