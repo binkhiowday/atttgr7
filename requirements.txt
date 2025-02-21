@@ -5,3 +5,4 @@ requests
 pyzbar
 opencv-python
 zbar-py
+beautifulsoup4
