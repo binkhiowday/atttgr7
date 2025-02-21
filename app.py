@@ -108,3 +108,10 @@ if uploaded_file:
             st.markdown(f"<div class='chat-box info'><strong>{preview_text}</strong></div>", unsafe_allow_html=True)
     else:
         st.markdown("<div class='chat-box warn'>⚠ Không phát hiện được mã QR hợp lệ trong ảnh!</div>", unsafe_allow_html=True)
+
+# Hiển thị logo và tiêu đề với Streamlit
+col1, col2 = st.columns([1, 5])
+with col1:
+    st.image("logo_ENG_positive_full-color-10.width-500.png", width=100)  # Cập nhật đúng tên file logo
+with col2:
+    st.markdown("## 🔍 Kiểm tra độ an toàn của mã QR & Xem trước URL")
