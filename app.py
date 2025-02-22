@@ -152,3 +152,20 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
             image_url = get_url_preview(decoded_url)
             if image_url:
                 st.image(image_url, caption="Ảnh xem trước website", use_column_width=True)
+
+            # 📜 Lưu lịch sử kiểm tra
+            cursor.execute("INSERT INTO qr_history (username, qr_url, status) VALUES (?, ?, ?)", (st.session_state["username"], decoded_url, safety_class))
+            conn.commit()
+
+    # 📜 Hiển thị lịch sử kiểm tra
+    st.subheader("📜 Lịch sử kiểm tra của bạn:")
+    cursor.execute("SELECT qr_url, status, checked_at FROM qr_history WHERE username=? ORDER BY checked_at DESC", (st.session_state["username"],))
+    history = cursor.fetchall()
+
+    if history:
+        for entry in history:
+            url, status, timestamp = entry
+            color_class = "safe" if status == "safe" else "danger" if status == "danger" else "warn"
+            st.markdown(f"<div class='chat-box {color_class}'>📅 {timestamp} - 🔗 <a href='{url}' target='_blank'>{url}</a></div>", unsafe_allow_html=True)
+    else:
+        st.info("Bạn chưa có lịch sử kiểm tra nào!")
