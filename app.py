@@ -2,12 +2,10 @@ import streamlit as st
 import qrcode
 from PIL import Image
 import requests
-import cv2
+from pyzbar.pyzbar import decode
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import sqlite3
-import os
-import cv2
 
 # 🖥️ Cấu hình trang rộng
 st.set_page_config(page_title="QR Security Check", layout="wide")
@@ -86,10 +84,10 @@ if auth_choice == "🔓 Đăng nhập":
 # Chỉ tiếp tục nếu đã đăng nhập
 if "logged_in" in st.session_state and st.session_state["logged_in"]:
 
-    # 🛡️ Cấu hình API Key của Google Safe Browsing (Thay bằng API Key của bạn)
+    # 🛡️ API Key của Google Safe Browsing (Thay bằng API Key của bạn)
     GOOGLE_SAFE_BROWSING_API_KEY = "YOUR_GOOGLE_SAFE_BROWSING_API_KEY"
 
-    # 🛡️ Kiểm tra độ an toàn của URL qua Google Safe Browsing API
+    # 🛡️ Kiểm tra độ an toàn của URL
     def check_url_safety(url):
         google_api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={GOOGLE_SAFE_BROWSING_API_KEY}"
         request_body = {
@@ -118,16 +116,13 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
             response = requests.get(url, timeout=5, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # Lấy ảnh từ thẻ meta Open Graph (og:image)
             og_image = soup.find("meta", property="og:image")
             image_url = og_image["content"] if og_image else None
 
-            # Nếu không có ảnh, lấy favicon
             if not image_url:
                 icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
                 image_url = icon_link["href"] if icon_link else None
 
-            # Xử lý URL ảnh nếu là đường dẫn tương đối
             if image_url and not image_url.startswith("http"):
                 image_url = urljoin(url, image_url)
 
@@ -136,7 +131,7 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
             return None
 
     # 📂 Tải lên ảnh QR Code
-    uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"], key="file_uploader_main")
+    uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"])
 
     if uploaded_file:
         # 📷 Hiển thị ảnh QR
@@ -144,14 +139,10 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
         st.image(image, caption="📷 Mã QR đã tải lên", use_column_width=True)
 
         # 🔍 Giải mã mã QR
-        temp_image_path = "temp_qr.png"
-        image.save(temp_image_path)
-        img = cv2.imread(temp_image_path)
-        detector = cv2.QRCodeDetector()
-        decoded_url, _, _ = detector.detectAndDecode(img)
-
-        if decoded_url:
-            st.markdown(f"<div class='chat-box info'>🔗 <strong>URL giải mã từ QR:</strong> <a href='{decoded_url}' target='_blank'>{decoded_url}</a></div>", unsafe_allow_html=True)
+        qr_data = decode(image)
+        if qr_data:
+            decoded_url = qr_data[0].data.decode("utf-8")
+            st.markdown(f"<div class='chat-box info'>🔗 <strong>URL:</strong> <a href='{decoded_url}' target='_blank'>{decoded_url}</a></div>", unsafe_allow_html=True)
 
             # 🛡️ Kiểm tra độ an toàn của URL
             safety_result, safety_class = check_url_safety(decoded_url)
