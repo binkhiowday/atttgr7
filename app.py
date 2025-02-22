@@ -2,7 +2,7 @@ import streamlit as st
 import qrcode
 from PIL import Image
 import requests
-from pyzbar.pyzbar import decode
+import cv2
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import sqlite3
@@ -25,123 +25,94 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 🏆 Tiêu đề ứng dụng
-st.markdown("<p class='title'>🔍 Kiểm tra độ an toàn của mã QR & Lưu trữ lịch sử</p>", unsafe_allow_html=True)
+st.markdown("<p class='title'>🔍 Kiểm tra độ an toàn của mã QR & Xem trước website</p>", unsafe_allow_html=True)
 
-# 🔹 Kết nối với SQLite để lưu tài khoản và lịch sử quét QR
-conn = sqlite3.connect("qr_scanner.db", check_same_thread=False)
-cursor = conn.cursor()
+# 🛡️ Cấu hình API Key của Google Safe Browsing (Thay bằng API Key của bạn)
+GOOGLE_SAFE_BROWSING_API_KEY = "YOUR_GOOGLE_SAFE_BROWSING_API_KEY"
 
-# 🔹 Tạo bảng nếu chưa tồn tại
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    password TEXT
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS qr_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT,
-    qr_url TEXT,
-    status TEXT,
-    checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-""")
-conn.commit()
-
-# 🏆 Đăng nhập / Đăng ký tài khoản
-st.sidebar.header("🔑 Đăng nhập / Đăng ký")
-
-# Chọn giữa đăng nhập hoặc đăng ký
-auth_choice = st.sidebar.radio("Chọn:", ["🔓 Đăng nhập", "📝 Đăng ký"])
-
-if auth_choice == "📝 Đăng ký":
-    new_username = st.sidebar.text_input("Tạo tài khoản")
-    new_password = st.sidebar.text_input("Mật khẩu", type="password")
-    if st.sidebar.button("Đăng ký"):
-        try:
-            cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (new_username, new_password))
-            conn.commit()
-            st.sidebar.success("✅ Đăng ký thành công! Vui lòng đăng nhập.")
-        except sqlite3.IntegrityError:
-            st.sidebar.error("❌ Tài khoản đã tồn tại!")
-
-if auth_choice == "🔓 Đăng nhập":
-    username = st.sidebar.text_input("Tài khoản")
-    password = st.sidebar.text_input("Mật khẩu", type="password")
-    if st.sidebar.button("Đăng nhập"):
-        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
-        user = cursor.fetchone()
-        if user:
-            st.sidebar.success(f"✅ Đăng nhập thành công! Xin chào {username}")
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = username
-        else:
-            st.sidebar.error("❌ Sai tài khoản hoặc mật khẩu!")
-
-# Chỉ tiếp tục nếu đã đăng nhập
-if "logged_in" in st.session_state and st.session_state["logged_in"]:
-
-    # 🛡️ API Key Google Safe Browsing (Thay bằng API Key của bạn)
-    GOOGLE_SAFE_BROWSING_API_KEY = "YOUR_GOOGLE_SAFE_BROWSING_API_KEY"
-
-    # 🛡️ Kiểm tra độ an toàn của URL qua Google Safe Browsing API
-    def check_url_safety(url):
-        google_api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={GOOGLE_SAFE_BROWSING_API_KEY}"
-        request_body = {
-            "client": {"clientId": "streamlit-app", "clientVersion": "1.0"},
-            "threatInfo": {
-                "threatTypes": ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
-                "platformTypes": ["ANY_PLATFORM"],
-                "threatEntryTypes": ["URL"],
-                "threatEntries": [{"url": url}]
-            }
+# 🛡️ Hàm kiểm tra độ an toàn của URL qua Google Safe Browsing API
+def check_url_safety(url):
+    google_api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={GOOGLE_SAFE_BROWSING_API_KEY}"
+    request_body = {
+        "client": {"clientId": "streamlit-app", "clientVersion": "1.0"},
+        "threatInfo": {
+            "threatTypes": ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+            "platformTypes": ["ANY_PLATFORM"],
+            "threatEntryTypes": ["URL"],
+            "threatEntries": [{"url": url}]
         }
+    }
 
-        try:
-            response = requests.post(google_api_url, json=request_body)
-            result = response.json()
-            if "matches" in result:
-                return "❌ Cảnh báo: URL này bị Google đánh dấu là không an toàn!", "danger"
-            else:
-                return "✅ URL an toàn!", "safe"
-        except Exception as e:
-            return f"⚠ Lỗi khi kiểm tra URL: {str(e)}", "warn"
+    try:
+        response = requests.post(google_api_url, json=request_body)
+        result = response.json()
+        if "matches" in result:
+            return "❌ Cảnh báo: URL này bị Google đánh dấu là không an toàn!", "danger"
+        else:
+            return "✅ URL an toàn!", "safe"
+    except Exception as e:
+        return f"⚠ Lỗi khi kiểm tra URL: {str(e)}", "warn"
 
-    # 📂 Tải lên ảnh QR Code
-    uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"], key="file_uploader_main")
+# 🌐 Hàm lấy tiêu đề trang & ảnh xem trước
+def get_url_preview(url):
+    try:
+        response = requests.get(url, timeout=5, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(response.text, "html.parser")
 
-    if uploaded_file:
-        # 📷 Hiển thị ảnh QR
-        image = Image.open(uploaded_file)
-        st.image(image, caption="📷 Mã QR đã tải lên", use_column_width=True)
+        # Lấy ảnh từ thẻ meta Open Graph (og:image)
+        og_image = soup.find("meta", property="og:image")
+        image_url = og_image["content"] if og_image else None
 
-        # 🔍 Giải mã mã QR
-        decoded_objects = decode(image)
-        if decoded_objects:
-            decoded_url = decoded_objects[0].data.decode("utf-8")
-            st.markdown(f"<div class='chat-box info'>🔗 <strong>URL giải mã từ QR:</strong> <a href='{decoded_url}' target='_blank'>{decoded_url}</a></div>", unsafe_allow_html=True)
+        # Nếu không có ảnh, lấy favicon
+        if not image_url:
+            icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
+            image_url = icon_link["href"] if icon_link else None
 
-            # 🛡️ Kiểm tra độ an toàn của URL
-            safety_result, safety_class = check_url_safety(decoded_url)
-            st.markdown(f"<div class='chat-box {safety_class}'>{safety_result}</div>", unsafe_allow_html=True)
+        # Xử lý URL ảnh nếu là đường dẫn tương đối
+        if image_url and not image_url.startswith("http"):
+            image_url = urljoin(url, image_url)
 
-            # Lưu vào lịch sử kiểm tra
-            cursor.execute("INSERT INTO qr_history (username, qr_url, status) VALUES (?, ?, ?)", (st.session_state["username"], decoded_url, safety_class))
-            conn.commit()
+        # Lấy tiêu đề trang
+        page_title = soup.title.string if soup.title else "Không tìm thấy tiêu đề trang"
 
-    # 📜 Hiển thị lịch sử kiểm tra
-    st.subheader("📜 Lịch sử kiểm tra của bạn:")
-    cursor.execute("SELECT qr_url, status, checked_at FROM qr_history WHERE username=? ORDER BY checked_at DESC", (st.session_state["username"],))
-    history = cursor.fetchall()
+        return image_url, page_title
+    except:
+        return None, "⚠ Không thể xem trước nội dung trang này!"
 
-    if history:
-        for entry in history:
-            url, status, timestamp = entry
-            color_class = "safe" if status == "safe" else "danger" if status == "danger" else "warn"
-            st.markdown(f"<div class='chat-box {color_class}'>📅 {timestamp} - 🔗 <a href='{url}' target='_blank'>{url}</a></div>", unsafe_allow_html=True)
+# 📂 Tải lên ảnh QR Code
+uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"], key="file_uploader_main")
+
+if uploaded_file:
+    # 📷 Hiển thị ảnh QR
+    image = Image.open(uploaded_file)
+    st.image(image, caption="📷 Mã QR đã tải lên", use_column_width=True)
+
+    # 🔍 Giải mã mã QR
+    def decode_qr(image_path):
+        img = cv2.imread(image_path)
+        detector = cv2.QRCodeDetector()
+        data, _, _ = detector.detectAndDecode(img)
+        return data
+
+    # Lưu ảnh QR vào file tạm để xử lý
+    temp_image_path = "temp_qr.png"
+    image.save(temp_image_path)
+
+    decoded_url = decode_qr(temp_image_path)
+    
+    if decoded_url:
+        st.markdown(f"<div class='chat-box info'>🔗 <strong>URL giải mã từ QR:</strong> <a href='{decoded_url}' target='_blank'>{decoded_url}</a></div>", unsafe_allow_html=True)
+
+        # 🛡️ Kiểm tra độ an toàn của URL
+        safety_result, safety_class = check_url_safety(decoded_url)
+        st.markdown(f"<div class='chat-box {safety_class}'>{safety_result}</div>", unsafe_allow_html=True)
+
+        # 🌐 Xem trước nội dung trang web
+        with st.expander("🔍 Xem trước nội dung trang web"):
+            image_url, preview_text = get_url_preview(decoded_url)
+
+            if image_url:
+                st.image(image_url, caption="Ảnh xem trước website", use_column_width=True)
+            st.markdown(f"<div class='chat-box info'><strong>{preview_text}</strong></div>", unsafe_allow_html=True)
     else:
-        st.info("Bạn chưa có lịch sử kiểm tra nào!")
-
+        st.markdown("<div class='chat-box warn'>⚠ Không phát hiện được mã QR hợp lệ trong ảnh!</div>", unsafe_allow_html=True)
