@@ -5,3 +5,4 @@ requests
 pyzbar
 opencv-python
 beautifulsoup4
+sqlite3
