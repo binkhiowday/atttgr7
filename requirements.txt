@@ -2,7 +2,5 @@ streamlit
 qrcode
 pillow
 requests
-pyzbar
 opencv-python
 beautifulsoup4
-
