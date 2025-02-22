@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 import sqlite3
 import os
+import cv2
 
 # 🖥️ Cấu hình trang rộng
 st.set_page_config(page_title="QR Security Check", layout="wide")
