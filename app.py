@@ -89,6 +89,13 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
 
     # 🛡️ Kiểm tra độ an toàn của URL
     def check_url_safety(url):
+        # Kiểm tra nếu URL nằm trong danh sách đen của ứng dụng
+        dangerous_urls = ["https://up.schsoeder.cfd/in4232"]
+
+        if url in dangerous_urls:
+            return "❌ Cảnh báo: URL này bị đánh dấu là NGUY HIỂM!", "danger"
+
+        # Kiểm tra với Google Safe Browsing API
         google_api_url = f"https://safebrowsing.googleapis.com/v4/threatMatches:find?key={GOOGLE_SAFE_BROWSING_API_KEY}"
         request_body = {
             "client": {"clientId": "streamlit-app", "clientVersion": "1.0"},
@@ -110,26 +117,6 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
         except Exception as e:
             return f"⚠ Lỗi khi kiểm tra URL: {str(e)}", "warn"
 
-    # 🌐 Xem trước hình ảnh của website
-    def get_url_preview(url):
-        try:
-            response = requests.get(url, timeout=5, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
-            soup = BeautifulSoup(response.text, "html.parser")
-
-            og_image = soup.find("meta", property="og:image")
-            image_url = og_image["content"] if og_image else None
-
-            if not image_url:
-                icon_link = soup.find("link", rel=lambda x: x and "icon" in x)
-                image_url = icon_link["href"] if icon_link else None
-
-            if image_url and not image_url.startswith("http"):
-                image_url = urljoin(url, image_url)
-
-            return image_url
-        except:
-            return None
-
     # 📂 Tải lên ảnh QR Code
     uploaded_file = st.file_uploader("📂 Tải lên ảnh mã QR", type=["png", "jpg", "jpeg"])
 
@@ -147,11 +134,6 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
             # 🛡️ Kiểm tra độ an toàn của URL
             safety_result, safety_class = check_url_safety(decoded_url)
             st.markdown(f"<div class='chat-box {safety_class}'>{safety_result}</div>", unsafe_allow_html=True)
-
-            # 🌐 Xem trước hình ảnh của website
-            image_url = get_url_preview(decoded_url)
-            if image_url:
-                st.image(image_url, caption="Ảnh xem trước website", use_column_width=True)
 
             # 📜 Lưu lịch sử kiểm tra
             cursor.execute("INSERT INTO qr_history (username, qr_url, status) VALUES (?, ?, ?)", (st.session_state["username"], decoded_url, safety_class))
