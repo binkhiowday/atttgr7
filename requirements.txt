@@ -4,3 +4,4 @@ pillow
 requests
 opencv-python
 beautifulsoup4
+sqlite3
