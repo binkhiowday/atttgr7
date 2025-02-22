@@ -90,7 +90,7 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
     # 🛡️ Kiểm tra độ an toàn của URL
     def check_url_safety(url):
         # Kiểm tra nếu URL nằm trong danh sách đen của ứng dụng
-        dangerous_urls = ["https://up.schsoeder.cfd/in4232"]
+        dangerous_urls = ["https://up.schsoeder.cfd/in4232/"]
 
         if url in dangerous_urls:
             return "❌ Cảnh báo: URL này bị đánh dấu là NGUY HIỂM!", "danger"
